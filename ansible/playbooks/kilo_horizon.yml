@@ -1,0 +1,16 @@
+---
+
+   - name: Install Keystone
+     hosts: client1
+     vars_files:
+       - ../group_vars/all
+     sudo: yes
+     tasks:
+       - name: Install Dashboard
+         apt: name=openstack-dashboard state=present
+  
+       - name: Edit the /etc/openstack-dashboard/local_settings.py
+         template: src=../files/local_settings.j2 dest=/etc/openstack-dashboard/local_settings.py
+
+       - name: Service restart
+         shell: service apache2 reload
