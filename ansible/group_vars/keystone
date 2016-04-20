@@ -1,0 +1,14 @@
+db:
+  db_name: keystone
+  openstack_dbpass: KEYSTONE_DBPASS
+  openstack_manage: keystone-manage
+
+db_sync: db_sync
+
+rabbit:
+  rabbit_pass: RABBIT_PASS
+
+identity:
+  os_url: http://controller:35357/v2.0
+  os_token: ADMIN_TOKEN
+  admin_pwd: admin

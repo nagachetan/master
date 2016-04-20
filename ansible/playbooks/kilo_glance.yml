@@ -1,0 +1,258 @@
+---
+   - name: Install Glance
+
+     hosts: client1
+     
+     vars_files: 
+       - ../group_vars/all
+       - ../group_vars/glance
+
+     sudo: yes
+
+     tasks:
+       - name: Create database for glance
+         #mysql_db: db={{ db.db_name }} state=present
+         command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
+       
+       - name: Create access to glance database
+         template: src=../templates/grant_prev.j2 dest=/tmp/grant_prev.sh mode=0777 
+
+       - name: Grant Permission
+         shell: ./grant_prev.sh chdir=/tmp/ 
+
+       - name: Create glance user
+         command: openstack user create glance --password {{ glance.glance_pass }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Add admin role to glance user
+         shell: openstack role add --project service --user glance admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Service create
+         command: openstack service create --name glance --description "OpenStack Image service" image --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Image api endpoint
+         command: openstack endpoint create --publicurl http://controller:9292 --internalurl http://controller:9292 --adminurl http://controller:9292 --region RegionOne image --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Install Packages
+         apt: name={{ item }} state=present
+         with_items:
+             - glance
+             - python-glanceclient
+     
+       - name: Configure Database access
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=database
+                   option=connection
+                   value=mysql://{{db.db_name}}:{{db.openstack_dbpass}}@controller/glance
+                   backup=yes
+       
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   state=absent
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   state=present
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+       
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=glance
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{glance.glance_pass}}
+                   backup=yes
+
+       - name: Configure paste_deploy section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=paste_deploy
+                   option=flavor
+                   value=keystone
+                   backup=yes
+
+       - name: Configure glance_store section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=glance_store
+                   option=default_store
+                   value=file
+                   backup=yes
+
+       - name: Configure glance_store section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=glance_store
+                   option=filesystem_store_datadir
+                   value=/var/lib/glance/images/
+                   backup=yes
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=DEFAULT
+                   option=notification_driver
+                   value=noop
+                   backup=yes
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/glance/glance-api.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+                   backup=yes
+
+       - name: Configure Database access
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=database
+                   option=connection
+                   value=mysql://{{db.db_name}}:{{db.openstack_dbpass}}@controller/glance
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=glance
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{db.openstack_dbpass}}
+                   backup=yes
+
+       - name: Configure paste_deploy section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=paste_deploy
+                   option=flavor
+                   value=keystone
+                   backup=yes
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=DEFAULT
+                   option=notification_driver
+                   value=noop
+                   backup=yes
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/glance/glance-registry.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+                   backup=yes
+
+       - name: copy syncdb file
+         template: src=../files/dbsync.j2 dest=/tmp/dbsync.sh mode=0777 
+       
+       - name: sync database
+         shell: ./dbsync.sh chdir=/tmp/
+
+       - name: Restart the services
+         service: name={{item}} state=restarted
+         with_items:
+             - glance-registry
+             - glance-api
+
+       - name: Removing sqlite db file
+         file: path=/var/lib/glance/glance.sqlite state=absent
+       
+       - name: download images
+         get_url: url=http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img dest=/tmp/cirros-0.3.4-x86_64-disk.img
+         tags: check
+
+       - name: upload image to glance
+         command: 'glance image-create --name "cirros-0.3.4-x86_64" --file /tmp/cirros-0.3.4-x86_64-disk.img --disk-format qcow2 --container-format bare --visibility public --os-url {{ identity.os_url }} --os-token {{ identity.os_token }} --os-username admin'
+         tags: check
+
+ 

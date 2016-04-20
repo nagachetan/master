@@ -1,0 +1,10 @@
+controller_ip: 192.168.56.14
+
+db_main:
+  root_db_user: root
+  root_db_password: admin
+  
+ip:
+  controller_ip: 192.168.56.14
+  compute_ip: 192.168.56.11
+  neutron_ip: 192.168.56.15
