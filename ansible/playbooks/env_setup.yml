@@ -1,0 +1,28 @@
+---
+
+   - name: Environment setup
+     hosts: client1
+     vars_files: 
+       - ../group_vars/all
+     
+     sudo: true
+     
+     tasks:
+       - name: Update /etc/hosts file
+         template: src=../templates/hosts_file.j2 dest=/tmp/hosts         
+
+       - name: apt-get update
+         apt: update_cache=yes 
+   
+       - name: apt-get upgrade
+         apt: upgrade=full 
+
+       - name: set ubuntu cloud archive and keyring
+         apt: name=ubuntu-cloud-keyring state=present
+
+       - name: apt-get update
+         apt: update_cache=yes
+
+       - name: apt-get upgrade
+         apt: upgrade=full
+

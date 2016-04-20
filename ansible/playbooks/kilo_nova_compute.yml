@@ -1,0 +1,178 @@
+---
+
+   - name: Install Nova compute components
+
+     hosts: client1
+
+     vars_files:
+       - ../group_vars/all
+       - ../group_vars/nova
+
+     sudo: yes
+
+     tasks:
+       #- name: Install the components
+       #  apt: name={{ item }} state=present
+       #  with_items:
+       #      - nova-compute
+       #      - sysfsutils
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=rpc_backend
+                   value=rabbit
+                   backup=yes         
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=auth_strategy
+                   value=keystone
+                   backup=yes
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_host
+                   value=controller
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_userid
+                   value=openstack
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_password
+                   value={{ rabbit.rabbit_pass }}
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   state=absent
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   state=present
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=nova
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{nova.nova_pass}}
+                   backup=yes
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=my_ip
+                   value={{ ip.controller_ip }}
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=vnc_enabled
+                   value=True
+      
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=vncserver_listen
+                   value=0.0.0.0
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=vncserver_proxyclient_address
+                   value={{ ip.controller_ip }}
+
+       - name: Configure DEFAULT section
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=novncproxy_base_url
+                   value=http://controller:6080/vnc_auto.html
+
+       - name: Configure conf file
+         ini_file: dest=/etc/nova/nova.conf
+                   section=glance
+                   option=host
+                   value=controller
+
+       - name: Configure conf file 
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_concurrency
+                   option=lock_path
+                   value=/var/lib/nova/tmp
+
+       - name: Configure conf file
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+
+       - name: Configure /etc/nova/nova-compute.conf
+         ini_file: dest=/etc/nova/nova-compute.conf
+                   section=libvirt
+                   option=virt_type
+                   value=qemu
+
+       - name: service restart
+         service: name=nova-compute state=restarted
+     
+       - name: Removing sqlite db file
+         file: path=/var/lib/nova/nova.sqlite state=absent 

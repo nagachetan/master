@@ -1,0 +1,201 @@
+---
+
+   - name: Install Nova controller components
+
+     hosts: client1
+
+     vars_files:
+       - ../group_vars/all
+       - ../group_vars/nova
+
+     sudo: yes
+
+     tasks:
+       - name: Create database for nova
+         #mysql_db: db={{ db.db_name }} state=present
+         command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
+
+       - name: Create access to nova database
+         template: src=../templates/grant_prev.j2 dest=/tmp/grant_prev.sh mode=0777
+
+       - name: Grant Permission
+         shell: ./grant_prev.sh chdir=/tmp/
+
+       - name: Create nova user
+         command: openstack user create nova --password {{ nova.nova_pass }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Add admin role to nova user
+         shell: openstack role add --project service --user nova admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Service create
+         command: openstack service create --name nova --description "OpenStack Compute" compute --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Compute api endpoint
+         command: openstack endpoint create --publicurl http://controller:8774/v2/%\(tenant_id\)s --internalurl http://controller:8774/v2/%\(tenant_id\)s --adminurl http://controller:8774/v2/%\(tenant_id\)s --region RegionOne compute --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Install Packages
+         apt: name={{ item }} state=present
+         with_items:
+             - nova-api
+             - nova-cert
+             - nova-conductor
+             - nova-consoleauth
+             - nova-novncproxy
+             - nova-scheduler
+             - python-novaclient
+        
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=database
+                   option=connection
+                   value=mysql://{{db.db_name}}:{{db.openstack_dbpass}}@controller/nova
+                   backup=yes
+       
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=rpc_backend
+                   value=rabbit
+                   backup=yes
+ 
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_host
+                   value=controller
+       
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_userid
+                   value=openstack
+    
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_password
+                   value=RABBIT_PASS
+         
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=auth_strategy
+                   value=keystone
+ 
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   state=absent
+                   backup=yes
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   state=present
+                   backup=yes
+
+       - name: Update /etc/nova/nova.conf        
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+    
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+ 
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+ 
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=nova
+ 
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{ nova.nova_pass }}
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=my_ip
+                   value={{ ip.controller_ip }}
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=vncserver_listen
+                   value={{ ip.controller_ip }}
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=vncserver_proxyclient_address
+                   value={{ ip.controller_ip }}
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=glance
+                   option=host
+                   value=controller
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=oslo_concurrency
+                   option=lock_path
+                   value=/var/lib/nova/tmp
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+
+       - name: copy syncdb file
+         template: src=../files/dbsync.j2 dest=/tmp/dbsync.sh mode=0777
+
+       - name: sync database
+         shell: ./dbsync.sh chdir=/tmp/
+
+       - name: Restart the services
+         service: name={{item}} state=restarted
+         with_items:
+             - nova-api
+             - nova-cert
+             - nova-consoleauth
+             - nova-scheduler
+             - nova-conductor
+             - nova-novncproxy
+
+       - name: Removing sqlite db file
+         file: path=/var/lib/nova/nova.sqlite state=absent
+        
+

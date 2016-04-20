@@ -1,0 +1,18 @@
+db:
+  db_name: nova
+  openstack_dbpass: NOVA_DBPASS
+  openstack_manage: nova-manage
+
+db_sync: db sync
+
+nova:
+  nova_pass: NOVA_PASS
+
+identity:
+  os_url: http://controller:35357/v2.0
+  os_token: ADMIN_TOKEN
+  admin_pwd: admin
+
+rabbit:
+  rabbit_pass: RABBIT_PASS
+
