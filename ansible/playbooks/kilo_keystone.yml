@@ -1,0 +1,206 @@
+---
+   
+   - name: Install Keystone
+     hosts: client1
+     vars_files: 
+       - ../group_vars/all
+       - ../group_vars/keystone
+     sudo: yes
+     tasks:
+       - name: set ubuntu cloud archive and keyring
+         apt: name=ubuntu-cloud-keyring state=present
+ 
+       - name: setting up repo
+         shell: 'echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list'
+      
+       - name: apt-get update
+         apt: update_cache=yes
+
+       - name: apt-get dist-upgrade
+         apt: upgrade=dist
+ 
+       - name: Install database
+         apt: name={{ item }} state=present
+         with_items: 
+            - mariadb-server
+            - python-mysqldb
+
+       - name: Update the db root credentials
+         mysql_user: name=root host={{ item }} password={{ db_main.root_db_password }}
+         with_items:
+            - localhost
+       
+       - name: Copy the mysql_conf contents
+         template: src=../templates/mysql_conf.j2 dest=/etc/mysql/conf.d/mysqld_openstack.cnf
+
+       - name: Restart mysql service
+         service: name=mysql state=restarted 
+
+       #secure mysql installation
+
+       - name: Install Rabbitmq
+         apt: name=rabbitmq-server state=present
+
+       - name: Add the openstack user
+         command: "rabbitmqctl add_user openstack {{ rabbit.rabbit_pass }}"
+         
+       - name: Permit read write accessfor openstack user
+         command: 'rabbitmqctl set_permissions openstack ".*" ".*" ".*"'
+
+       - name: Create database for keystone
+         #mysql_db: db={{ db.db_name }} state=present
+         command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
+
+       - name: Create access to keystone database
+         #command: mysql -u root -padmin -e {{ item }}
+         #with_items:
+         #    - 'GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'KEYSTONE_DBPASS';'
+         #    - 'GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'KEYSTONE_DBPASS';'
+         template: src=../templates/grant_prev.j2 dest=/tmp/grant_prev.sh mode=0777 
+       
+       - name: Grant Permission
+         shell: ./grant_prev.sh chdir=/tmp/ 
+         
+       - name: Disable keystone service from starting automatically after installation
+         shell: 'echo "manual" > /etc/init/keystone.override'
+          
+       - name: Install all the keystone packages
+         apt: name={{ item }} state=present
+         with_items:
+             - keystone
+             - python-openstackclient 
+             - apache2 
+             - libapache2-mod-wsgi 
+             - memcached 
+             - python-memcache
+
+       - name: Update /etc/keystone/keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=DEFAULT
+                   option=admin_token
+                   value=ADMIN_TOKEN
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=database
+                   option=connection 
+                   value=mysql://keystone:KEYSTONE_DBPASS@controller/keystone
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=memcache
+                   option=servers                                                       
+                   value=localhost:11211
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=token
+                   option=provider
+                   value=keystone.token.providers.uuid.Provider
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=token
+                   option=driver
+                   value=keystone.token.persistence.backends.memcache.Token
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=revoke
+                   option=driver
+                   value=keystone.contrib.revoke.backends.sql.Revoke
+                   backup=yes
+
+       - name: Update keystone.conf
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+                   backup=yes
+
+       - name: copy syncdb file
+         #shell: 'su -s /bin/sh -c "keystone-manage db_sync" keystone' 
+         template: src=../files/dbsync.j2 dest=/tmp/dbsync.sh mode=0777 
+         
+       - name: sync database
+         shell: ./dbsync.sh chdir=/tmp/
+
+       - name: Update server name to /etc/apache2/apache2.conf
+         #shell: echo "ServerName controller" >> /etc/apache2/apache2.conf  -- not required below onw working fine
+         lineinfile: dest=/etc/apache2/apache2.conf regexp="^ServerName controller" line="ServerName controller"
+ 
+       - name: Update contents to /etc/apache2/sites-available/wsgi-keystone.conf 
+         copy: src=../files/wsgi_keystone.conf dest=/etc/apache2/sites-available/wsgi-keystone.conf 
+
+       - name: Enable the identity service
+         shell: ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
+      
+       - name: Create the dir structure 
+         file: path=/var/www/cgi-bin/keystone state=directory
+
+       - name: Copy the WSGI components
+         #shell: curl http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo | tee /var/www/cgi-bin/keystone/main /var/www/cgi-bin/keystone/admin
+         get_url: url=http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo dest=/var/www/cgi-bin/keystone/main
+
+       - name: Copy the WSGI components
+         get_url: url=http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=stable/kilo dest=/var/www/cgi-bin/keystone/admin
+
+       - name: Adjust Ownership permission
+         #shell: chown -R keystone:keystone /var/www/cgi-bin/keystone
+         file:  path=/var/www/cgi-bin/keystone owner=keystone group=keystone recurse=yes mode=0755
+
+       - name: Service apache2 restart
+         service: name=apache2 state=restarted
+         tags:
+           - dbsync
+
+       - name: Removing sqlite db file
+         #shell: rm -f /var/lib/keystone/keystone.db
+         file: path=/var/lib/keystone/keystone.db state=absent
+         tags:
+           - dbsync
+
+       - name: Copy openrc
+         copy: src=../files/openrc.sh dest=/root/openrc.sh mode=0777      
+         tags:
+           - dbsync
+ 
+       - name: Create keystone service
+         command: 'openstack service create --name keystone --description "OpenStack Identity" identity --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}' 
+         tags:
+           - dbsync
+       
+       - name: Create keystone endpoint
+         command: 'openstack endpoint create --publicurl http://controller:5000/v2.0 --internalurl http://controller:5000/v2.0 --adminurl http://controller:35357/v2.0 --region RegionOne identity --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync
+
+       - name: Create admin project
+         command: 'openstack project create --description "Admin Project" admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync
+
+       - name: Create admin user
+         command: 'openstack user create admin --password {{ identity.admin_pwd }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync1
+ 
+       - name: Create admin role
+         command: 'openstack role create admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync
+
+       - name: Assign admin role to admin
+         command: 'openstack role add --project admin --user admin admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync
+
+       - name: Create service project
+         command: ' openstack project create --description "Service Project" service --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
+         tags:
+           - dbsync
