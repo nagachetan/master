@@ -1,0 +1,37 @@
+---
+   - name: Install Cinder
+
+     hosts: client1
+
+     vars_files:
+       - ../group_vars/all
+       - ../group_vars/cinder
+
+     sudo: yes
+
+     tasks:
+       - name: Create database for cinder
+         #mysql_db: db={{ db.db_name }} state=present
+         command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
+
+       - name: Create access to cinder database
+         template: src=../templates/grant_prev.j2 dest=/tmp/grant_prev.sh mode=0777
+
+       - name: Grant Permission
+         shell: ./grant_prev.sh chdir=/tmp/
+
+       - name: Create cinder user
+         command: openstack user create cinder --password {{ cinder.cinder_pass }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Add the admin role
+         command: openstack role add --project service --user cinder admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+ 
+       - name: Create Cinder service
+         command: openstack service create --name cinder --description "OpenStack Block Storage" volume --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name: Create Cinder service
+         command: openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2 --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+
+       - name:  
+
+       
