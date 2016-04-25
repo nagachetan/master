@@ -1,0 +1,271 @@
+---
+   - name: Install Neutron on compute node
+
+     hosts: client1
+
+     vars_files:
+       - ../group_vars/all
+       - ../group_vars/neutron
+
+     sudo: yes
+
+     tasks:
+       - name: Insert in /etc/sysctl.conf
+         blockinfile:
+             dest: /etc/sysctl.conf
+             block: |
+               net.ipv4.conf.all.rp_filter=0
+               net.ipv4.conf.default.rp_filter=0
+               net.bridge.bridge-nf-call-iptables=1
+               net.bridge.bridge-nf-call-ip6tables=1  
+
+       - name: Implement the changes
+         shell: sysctl -p
+
+       - name: Install Networking Components
+         apt: name={{item}} state=present
+         with_items:
+             - neutron-plugin-ml2
+             - neutron-plugin-openvswitch-agent       
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=rpc_backend
+                   value=rabbit
+
+       - name: Configure conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_host
+                   value=controller
+
+       - name: Configure conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_userid
+                   value=openstack
+
+       - name: Configure conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=oslo_messaging_rabbit
+                   option=rabbit_password
+                   value={{ rabbit.rabbit_pass }}
+
+       - name: Configure conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=auth_strategy
+                   value=keystone
+
+      - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   state=absent
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   state=present
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+                   backup=yes
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=neutron
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{ neutron.neutron_pass }}
+
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=core_plugin
+                   value=ml2
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=service_plugins
+                   value=router
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=allow_overlapping_ips
+                   value=True
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=DEFAULT
+                   option=verbose
+                   value=True
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=type_drivers
+                   value=flat,vlan,gre,vxlan
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=tenant_network_types
+                   value=gre
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=mechanism_drivers
+                   value=openvswitch
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2_type_gre
+                   option=tunnel_id_ranges
+                   value=1:1000
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=securitygroup
+                   option=enable_security_group
+                   value=True
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=securitygroup
+                   option=enable_ipset
+                   value=True
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=securitygroup
+                   option=firewall_driver
+                   value=neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ovs
+                   option=local_ip
+                   value={{ip.compute_ip}}
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest=/etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=agent
+                   option=tunnel_types
+                   value=gre
+
+       - name: Restart OVS service
+         service: name=openvswitch-switch state=restarted
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=network_api_class
+                   value=nova.network.neutronv2.api.API
+       
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=security_group_api
+                   value=neutron
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=linuxnet_interface_driver
+                   value=nova.network.linux_net.LinuxOVSInterfaceDriver
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=DEFAULT
+                   option=firewall_driver
+                   value=nova.virt.firewall.NoopFirewallDriver
+       
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=url
+                   value=http://controller:9696
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=auth_strategy
+                   value=keystone
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=admin_auth_url
+                   value=http://controller:35357/v2.0
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=admin_tenant_name
+                   value=service
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=admin_username
+                   value=neutron
+
+       - name: Update /etc/nova/nova.conf
+         ini_file: dest=/etc/nova/nova.conf
+                   section=neutron
+                   option=admin_password
+                   value={{neutron.neutron_pass}}
+
+       - name: Restart service
+         service: name={{item}} state=restarted
+         with_items:
+             - nova-compute
+             - neutron-plugin-openvswitch-agent
+

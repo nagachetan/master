@@ -1,0 +1,371 @@
+---
+   - name: Install Neutron on network node
+
+     hosts: client1
+
+     vars_files:
+       - ../group_vars/all
+       - ../group_vars/neutron
+
+     sudo: yes
+
+     tasks:
+       
+       - name: Insert in /etc/sysctl.conf
+         blockinfile: 
+             dest: /etc/sysctl.conf
+             block: |
+               net.ipv4.ip_forward=1
+               net.ipv4.conf.all.rp_filter=0
+               net.ipv4.conf.default.rp_filter=0
+
+       - name: Implement the changes
+         shell: sysctl -p
+
+       - name: Install the networking components
+         apt: name={{item}} state=present
+         with_items:
+             - neutron-plugin-ml2 
+             - neutron-plugin-openvswitch-agent
+             - neutron-l3-agent 
+             - neutron-dhcp-agent
+             - neutron-metadata-agent
+
+       - name: Comment database connection
+         lineinfile: dest=/etc/neutron/neutron.conf regexp="^connection" line="#connection"
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=rpc_backend
+                  value=rabbit
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=auth_strategy
+                  value=keystone
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=oslo_messaging_rabbit
+                  option=rabbit_host
+                  value=controller
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=oslo_messaging_rabbit
+                  option=rabbit_userid
+                  value=openstack
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=oslo_messaging_rabbit
+                  option=rabbit_password
+                  value=RABBIT_PASS
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   state=absent
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   state=present
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_uri
+                   value=http://controller:5000
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_url
+                   value=http://controller:35357
+                   backup=yes
+
+       - name: Configure keystone_authtoken section
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=auth_plugin
+                   value=password
+                   backup=yes
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=project_domain_id
+                   value=default
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=user_domain_id
+                   value=default
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=project_name
+                   value=service
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=username
+                   value=neutron
+
+       - name: Update /etc/neutron/neutron.conf
+         ini_file: dest=/etc/neutron/neutron.conf
+                   section=keystone_authtoken
+                   option=password
+                   value={{ neutron.neutron_pass }}
+
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=core_plugin
+                  value=ml2
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=service_plugins
+                  value=router
+         
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=allow_overlapping_ips
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=DEFAULT
+                  option=verbose
+                  value=True
+
+     
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest= /etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=type_drivers
+                   value=flat,vlan,gre,vxlan
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest= /etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=tenant_network_types
+                   value=gre
+
+       - name: Update /etc/neutron/plugins/ml2/ml2_conf.ini
+         ini_file: dest= /etc/neutron/plugins/ml2/ml2_conf.ini
+                   section=ml2
+                   option=mechanism_drivers
+                   value=openvswitch
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=ml2_type_flat
+                  option=flat_networks
+                  value=external
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=ml2_type_gre
+                  option=tunnel_id_ranges
+                  value=1:1000
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=securitygroup
+                  option=enable_security_group
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=securitygroup
+                  option=enable_ipset
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=securitygroup
+                  option=firewall_driver
+                  value=neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=ovs
+                  option=local_ip
+                  value={{ ip.neutron_ip }}
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=ovs
+                  option=bridge_mappings
+                  value=external:br-ex
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/neutron.conf
+                  section=agent
+                  option=tunnel_types
+                  value=gre
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/l3_agent.ini
+                  section=DEFAULT
+                  option=interface_driver
+                  value=neutron.agent.linux.interface.OVSInterfaceDriver
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/l3_agent.ini
+                  section=DEFAULT
+                  option=external_network_bridge
+                  value=
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/l3_agent.ini
+                  section=DEFAULT
+                  option=router_delete_namespaces
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/l3_agent.ini
+                  section=DEFAULT
+                  option=verbose
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/dhcp_agent.ini
+                  section=DEFAULT
+                  option=interface_driver
+                  value=neutron.agent.linux.interface.OVSInterfaceDriver
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/dhcp_agent.ini
+                  section=DEFAULT
+                  option=dhcp_driver
+                  value=neutron.agent.linux.dhcp.Dnsmasq
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/dhcp_agent.ini
+                  section=DEFAULT
+                  option=dhcp_delete_namespaces
+                  value=True
+      
+       - name: Update conf file
+         inifile: dest=/etc/neutron/dhcp_agent.ini
+                  section=DEFAULT
+                  option=verbose
+                  value=True
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/dhcp_agent.ini
+                  section=DEFAULT
+                  option=dnsmasq_config_file
+                  value=/etc/neutron/dnsmasq-neutron.conf
+
+       - name: Update conf file
+         lineinfile: dest=/etc/neutron/dnsmasq-neutron.conf regexp=^'dhcp-option-force' line=dhcp-option-force=26,1454
+
+       - name: Kill dnsmasq process
+         shell: pkill dnsmasq
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=auth_uri
+                  value=http://controller:5000
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=auth_url
+                  value=http://controller:35357
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=auth_region
+                  value=RegionOne
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=auth_plugin
+                  value=password
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=project_domain_id
+                  value=default
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=user_domain_id
+                  value=default
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=project_name
+                  value=service
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=username
+                  value=neutron
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=password
+                  value={{neutron.neutron_pass}}
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=nova_metadata_ip
+                  value=controller
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=metadata_proxy_shared_secret
+                  value=METADATA_SECRET
+
+       - name: Update conf file
+         inifile: dest=/etc/neutron/metadata_agent.ini
+                  section=DEFAULT
+                  option=verbose
+                  value=True
+
+       - name: Service restart
+         service: name=openvswitch-switch state=restarted
+
+       - name: Add the External Bridge
+         command: ovs-vsctl add-br br-ex 
+
+       - name: Add a port to external bridge that connects to physical interface
+         command: ovs-vsctl add-port br-ex {{ interface }}
+
+       - name: service neutron restart
+         service: name={{item}} state=restarted
+         with_items:
+             - neutron-plugin-openvswitch-agent
+             - neutron-l3-agent
+             - neutron-dhcp-agent
+             - neutron-metadata-agent
+
+      
