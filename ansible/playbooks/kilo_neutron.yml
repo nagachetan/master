@@ -21,16 +21,52 @@
          shell: ./grant_prev.sh chdir=/tmp/
 
        - name: Create neutron user
-         command: openstack user create neutron --password {{ glance.glance_pass }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack user create neutron --password {{ glance.glance_pass }}'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Add admin role to neutron user
-         shell: openstack role add --project service --user neutron admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         shell: 'openstack role add --project service --user neutron admin'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
       
        - name: Service create
-         command: openstack service create --name neutron --description "OpenStack Networking" network --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack service create --name neutron --description "OpenStack Networking" network'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Image api endpoint
-         command: openstack endpoint create --publicurl http://controller:9696 --internalurl http://controller:9696 --adminurl http://controller:9696 --region RegionOne network --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack endpoint create --publicurl http://controller:9696 --internalurl http://controller:9696 --adminurl http://controller:9696 --region RegionOne network'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Install Packages
          apt: name={{ item }} state=present

@@ -11,9 +11,9 @@
      sudo: yes
 
      tasks:
-       - name: Create database for nova
+       #- name: Create database for nova
          #mysql_db: db={{ db.db_name }} state=present
-         command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
+       #  command: mysql -u {{ db_main.root_db_user }} -p{{db_main.root_db_password}} -e 'CREATE DATABASE {{ db.db_name }};'
 
        - name: Create access to nova database
          template: src=../templates/grant_prev.j2 dest=/tmp/grant_prev.sh mode=0777
@@ -22,16 +22,53 @@
          shell: ./grant_prev.sh chdir=/tmp/
 
        - name: Create nova user
-         command: openstack user create nova --password {{ nova.nova_pass }} --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack user create nova --password {{ nova.nova_pass }}'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
+
 
        - name: Add admin role to nova user
-         shell: openstack role add --project service --user nova admin --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         shell: 'openstack role add --project service --user nova admin'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Service create
-         command: openstack service create --name nova --description "OpenStack Compute" compute --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack service create --name nova --description "OpenStack Compute" compute'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Compute api endpoint
-         command: openstack endpoint create --publicurl http://controller:8774/v2/%\(tenant_id\)s --internalurl http://controller:8774/v2/%\(tenant_id\)s --adminurl http://controller:8774/v2/%\(tenant_id\)s --region RegionOne compute --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}
+         command: 'openstack endpoint create --publicurl http://controller:8774/v2/%\(tenant_id\)s --internalurl http://controller:8774/v2/%\(tenant_id\)s --adminurl http://controller:8774/v2/%\(tenant_id\)s --region RegionOne compute'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
 
        - name: Install Packages
          apt: name={{ item }} state=present
