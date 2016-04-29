@@ -173,7 +173,7 @@
        - name: Create keystone service
          command: 'openstack service create --name keystone --description "OpenStack Identity" identity --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}' 
          tags:
-           - dbsync
+           - dbsync1
        
        - name: Create keystone endpoint
          command: 'openstack endpoint create --publicurl http://controller:5000/v2.0 --internalurl http://controller:5000/v2.0 --adminurl http://controller:35357/v2.0 --region RegionOne identity --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
@@ -204,3 +204,25 @@
          command: ' openstack project create --description "Service Project" service --os-url {{ identity.os_url }} --os-token {{ identity.os_token }}'
          tags:
            - dbsync
+
+       - name: Update to mysql
+         ini_file: dest=/etc/keystone/keystone.conf
+                   section=token
+                   option=driver
+                   value=keystone.token.persistence.backends.mysql.Token
+                   backup=yes
+
+       - name: Service apache2 restart
+         service: name=apache2 state=restarted
+ 
+       - name: Update password for admin user
+         command: 'openstack user set admin --password {{ identity.admin_pwd }}'
+         environment:
+            OS_PROJECT_DOMAIN_ID: default
+            OS_USER_DOMAIN_ID: default
+            OS_PROJECT_NAME: admin
+            OS_PASSWORD: ADMIN_PASS
+            OS_AUTH_URL: http://controller:35357/v3
+            OS_USERNAME: admin
+            OS_TENANT_NAME: admin
+            OS_URL: http://controller:35357/v2.0
