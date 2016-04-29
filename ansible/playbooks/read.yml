@@ -1,0 +1,6 @@
+---
+ - name: Read file
+   hosts: client1
+   
+   tasks: 
+    - debug: msg="the value of Rabbitmq_Password is {{ lookup('ini', 'rabbitmq_password section=rabbit file=/root/test') }}"

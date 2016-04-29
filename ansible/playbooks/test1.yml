@@ -1,0 +1,12 @@
+---
+   - name: Get ls info
+     hosts: client1
+     #vars_files: 
+     #- ../group_vars/
+     tasks:
+       - name: Get ls output
+         shell: ls /usr/ >> /tmp/test
+       - name: create file
+         file: path=/tmp/test_file state=touch 
+       - name: write file
+         lineinfile: dest=/tmp/test_file line="ls /usr"

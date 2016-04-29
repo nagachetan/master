@@ -1,0 +1,4 @@
+---
+os_region: brhal
+rabbitmq_pass: asdasd
+murano_vip: 12.80.25.160

@@ -1,0 +1,22 @@
+---
+
+admin_tenant: admin
+admin_token: 1234567890
+keystone_vip: identity.dsvtx.infra.aic.att.net
+os_region: {{ os_region }}
+
+murano:
+  rabbitmq_host: 192.168.28.210
+  rabbitmq_user: nova
+  rabbitmq_pass: {{ rabbitmq_pass }}
+  rabbitmq_amqp_port: 5673
+  rabbitmq_ha_amqp_port: 5672
+  db_pass: murano
+  os_pass: P0ivLXd5uua1AL
+  os_user: m95672
+  db_host: 192.168.28.210
+  external_network: net04_ext
+  router_name: murano-default-router
+  murano_vip: {{ murano_vip }}
+  ssl_src_path: /home/m96722/aic/files/certificates/ssl_certs/murano-aic/murano-aic.includesprivatekey.pem
+  ssl_dest_path: /root/.ssh/murano/murano.includesprivatekey.pem

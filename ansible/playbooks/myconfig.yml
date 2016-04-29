@@ -1,0 +1,27 @@
+- hosts: client1
+  tasks:
+    - ini_file: dest=/tmp/test.conf
+                value='eth0 address'
+                backup=yes
+    - ini_file: dest=/tmp/test.conf
+                section=default
+                option=val1
+                value=changed
+                backup=yes
+    
+    - ini_file: dest=/tmp/test.conf
+                section=occupation
+                option=val1
+                value=hired
+                backup=yes
+    - ini_file: dest=/tmp/test.conf
+                section=helloini
+                option=val2
+                value=ihavechanged
+                backup=yes
+    - ini_file: dest=/tmp/test.conf
+                section=helloini
+                option=val4
+                value=ihavechanged
+                backup=yes
+

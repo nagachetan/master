@@ -221,6 +221,7 @@
 
        - name: sync database
          shell: ./dbsync.sh chdir=/tmp/
+         tags: db
 
        - name: Restart the services
          service: name={{item}} state=restarted
@@ -231,8 +232,8 @@
              - nova-scheduler
              - nova-conductor
              - nova-novncproxy
+         tags: db
 
        - name: Removing sqlite db file
          file: path=/var/lib/nova/nova.sqlite state=absent
-        
-
+         tags: db

@@ -1,0 +1,13 @@
+---
+   - name: test command
+   - hosts: client1
+
+     tasks:
+        - name: command to create folder
+          file: path=/tmp/test1 state=directory
+
+        - name: install mariadb
+          apt: name={{ item }} state=present
+          with_items:
+            -  mariadb-server 
+            -  python-mysqldb

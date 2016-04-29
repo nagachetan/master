@@ -1,0 +1,16 @@
+---
+ - hosts : hosts
+ - vars_files : 
+    - all
+ - tasks : 
+    - name : powercli installation
+      win_stat: path='c:\Program Files (x86)\'
+    - name : Download powercli
+      win_get_url :
+         url : ''
+         dest : 'c:\'
+    - name : Install powercli
+      raw : 'c:\  /Quiet /NoRestart /Full'   
+    - name : Execute script
+      script : startProcess.ps1
+        

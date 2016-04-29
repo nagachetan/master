@@ -1,0 +1,9 @@
+--- 
+- hosts: web
+  tasks: 
+#       - name: Installs apache web server
+#         ini_file: dest=/tmp/test.conf section=default option=val1 value=ihavechanged backup=yes
+
+
+
+       - ini_file: dest=/tmp/test.conf section=vmware option=val1 value=ihavechanged backup=yes

@@ -1,0 +1,23 @@
+---
+   - name: Update to AIC.list
+     hosts: client1
+     #- ../group_vars/
+     #vars:
+      #contents: "{{ lookup('ini', 'rabbitmq_password file=/root/test') }}"
+     vars_files:
+       - ../group_vars/murano
+
+     tasks:
+       #- name: Get content
+       #  shell: cat /etc/apt/sources.list.d/AIC.list
+       #- name: Comment existing contents in AIC.list
+       #  shell: "sed -e '/'deb'/s/^/#/g' -i /etc/apt/sources.list.d/AIC.list"
+       #- name: comment existing content and add new line
+       #  lineinfile: dest=/etc/apt/sources.list.d/AIC.list line="deb http://12.80.31.201:3128/aic-mos/aicv2-mos-prod/mos-6.1/ mos6.1 main"
+       #- name: apt-get update
+       #  apt: update_cache=true 
+       #- name: create murano folder
+       #  file: path="/root/.ssh/murano" state=directory
+       #- name: copy murano file
+       #  template: src=/home/ubuntu/ansible/roles/templates/murano.j2 dest=/tmp/murano
+       -  name: copy ssl certs to 
